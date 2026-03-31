@@ -81,7 +81,7 @@ def load_data():
     return df_comparison
 
 
-def save_cleaned_data(df_comparison, target_merchants):
+def preprocess(df_comparison, target_merchants, save_data=True):
     assert (
         target_merchants in df_comparison["merchant"].values
     ), f"Target merchant {target_merchants} not found in data"
@@ -141,9 +141,9 @@ def save_cleaned_data(df_comparison, target_merchants):
     print(
         f"Average growth difference between target and peers: {df_combined['amt_growth_ctc_diff'].sum():.2%}"
     )
-
-    # Save the combined data to a CSV file
-    save_file(df_combined, "etl/rca_data.csv")
+    if save_data:
+        # Save the combined data to a CSV file
+        save_file(df_combined, "etl/rca_data.csv")
 
     return df_combined
 
@@ -191,6 +191,6 @@ if __name__ == "__main__":
     print(f"Data loaded with shape: {df_comparison.shape}")
     print(f"Sample data:\n{df_comparison.head()}")
 
-    df_combined = save_cleaned_data(df_comparison, TARGET_MERCHANTS)
+    df_combined = preprocess(df_comparison, TARGET_MERCHANTS)
     print(f"Cleaned data saved with shape: {df_combined.shape}")
     print(f"Sample cleaned data:\n{df_combined.head()}")
