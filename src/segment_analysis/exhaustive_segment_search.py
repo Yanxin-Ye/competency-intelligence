@@ -1,3 +1,5 @@
+"""Check all combinations of dimensions to find top drivers of growth difference"""
+
 import etl
 from itertools import combinations
 from config import DIMENSION_COLS
