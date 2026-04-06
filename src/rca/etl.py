@@ -14,8 +14,8 @@ from config import (
 from helper import get_generation
 
 
-def load_data():
-    # Load dataset from huggingface
+def load_trans_data():
+    # Load dataset from huggingface, do some basic ETL to create a comparison dataset with TY and LY amounts by merchant and category
     splits = {
         "train": "credit_card_transaction_train.csv",
         "test": "credit_card_transaction_test.csv",
@@ -143,7 +143,7 @@ def preprocess(df_comparison, target_merchants, save_data=True):
     )
     if save_data:
         # Save the combined data to a CSV file
-        save_file(df_combined, "etl/rca_data.csv")
+        save_file(df_combined, f"etl/rca_{target_merchants}.csv")
 
     return df_combined
 
@@ -174,7 +174,7 @@ def calculate_growth(df):
     return df
 
 
-def save_file(df, filename="etl/data.csv"):
+def save_file(df, filename):
 
     base_dir = Path(__file__).resolve().parent
     output_path = base_dir / filename
@@ -187,7 +187,7 @@ if __name__ == "__main__":
 
     TARGET_MERCHANTS = "fraud_Kilback LLC"
 
-    df_comparison = load_data()
+    df_comparison = load_trans_data()
     print(f"Data loaded with shape: {df_comparison.shape}")
     print(f"Sample data:\n{df_comparison.head()}")
 
