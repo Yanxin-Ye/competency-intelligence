@@ -1,5 +1,4 @@
-# Growth Gap Decomposition Analysis
-
+# Segment Contribution Analysis on Growth
 ## Overview
 
 When comparing a target entity against a peer set, aggregate metrics

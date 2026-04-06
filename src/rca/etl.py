@@ -183,6 +183,19 @@ def save_file(df, filename):
     df.to_csv(output_path, index=False)
 
 
+def load_rca_data(target_merchants: str):
+    BASE_DIR = Path(__file__).resolve().parent
+    file_path = BASE_DIR / "etl" / f"rca_{target_merchants}.csv"
+    if file_path.exists():
+        print(f"File exists, loading data from {file_path}...")
+        df_combined = pd.read_csv(file_path)
+    else:
+        print("File does not exist, loading data from source...")
+        df_comparison = load_trans_data()
+        df_combined = preprocess(df_comparison, target_merchants)
+    return df_combined
+
+
 if __name__ == "__main__":
 
     TARGET_MERCHANTS = "fraud_Kilback LLC"
