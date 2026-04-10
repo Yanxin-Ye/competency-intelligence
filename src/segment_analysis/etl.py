@@ -10,6 +10,7 @@ from config import (
     RANDOM_SEED,
     START_DATE_LY,
     START_DATE_TY,
+    STATE_TO_MARKET,
 )
 from helper import get_generation
 
@@ -40,6 +41,7 @@ def load_trans_data():
         .assign(
             dob=lambda x: pd.to_datetime(x["dob"]),
             generation=lambda x: x["dob"].dt.year.map(get_generation),
+            market=lambda x: x["state"].map(STATE_TO_MARKET),
         )
         .copy()
     )
