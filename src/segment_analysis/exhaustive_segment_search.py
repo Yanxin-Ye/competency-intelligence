@@ -3,38 +3,17 @@
 import etl
 from itertools import combinations
 from config import DIMENSION_COLS
+from helper import grpby_dim_val
 
 
-def grpby_dim_val(df, dims, target_col):
-    kv = {}
-
-    # make dims always a list
-    if isinstance(dims, str):
-        dims = [dims]
-
-    grouped = (
-        df[dims + [target_col]]
-        .groupby(dims, dropna=False)[target_col]
-        .sum()
-        .reset_index()
-    )
-
-    for row in grouped.to_dict("records"):
-        k_parts = [f"{dim} = {row[dim]}" for dim in dims]
-        k = ", ".join(k_parts)
-        v = row[target_col]
-        kv[k] = v
-
-    return kv
-
-
-def exhaustive_eval(df_combined, target_col):
+def exhaustive_eval(df_combined, target_col, dim_cols=DIMENSION_COLS):
     res = {}
-    n = len(DIMENSION_COLS)
+    n = len(dim_cols)
     for k in range(1, n + 1):
-        for comb in combinations(DIMENSION_COLS, k):
+        for comb in combinations(dim_cols, k):
             res.update(grpby_dim_val(df_combined, list(comb), target_col))
-    sorted_res = sorted(res.items(), key=lambda x: x[1], reverse=True)
+    need_reverse = df_combined[target_col].sum() > 0
+    sorted_res = sorted(res.items(), key=lambda x: x[1], reverse=need_reverse)
     return sorted_res
 
 
