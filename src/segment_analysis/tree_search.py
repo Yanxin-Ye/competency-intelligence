@@ -52,20 +52,10 @@ class TreeNode:
 
         best_split, best_score = sorted_res[0]
         best_split_dim, best_split_val = best_split.split(" = ")
-        print(
-            f"Best split for current node: {best_split_dim} = {best_split_val} with score {best_score:.2%}"
-        )
-
         mask = df[best_split_dim].astype(str) == best_split_val
 
         left_df = df[mask]
-        print(
-            f"Left df sample after split on {best_split_dim} = {best_split_val}:\n{left_df.head()}"
-        )
         right_df = df[~mask | df[best_split_dim].isna()]
-        print(
-            f"Right df sample after split on {best_split_dim} = {best_split_val}:\n{right_df.head()}"
-        )
 
         # avoid useless split
         if left_df.empty or right_df.empty:
