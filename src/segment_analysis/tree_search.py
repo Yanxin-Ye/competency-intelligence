@@ -30,7 +30,7 @@ class TreeNode:
         self.right_node = None
         self.best_split_dim = None
         self.best_split_val = None
-        self.best_score = None
+        self.best_split_score = None
 
     def learn(self, verbose=True):
         df = self.df
@@ -56,7 +56,7 @@ class TreeNode:
                     f"{i:>2}. {k:<50} | {v:>8.2%} | contribution: {v/self.target_col_sum:>6.2%}"
                 )
 
-        best_split, best_score = sorted_res[0]
+        best_split, best_split_score = sorted_res[0]
         best_split_dim, best_split_val = best_split.split(" = ")
         mask = df[best_split_dim].astype(str) == best_split_val
 
@@ -69,7 +69,7 @@ class TreeNode:
 
         self.best_split_dim = best_split_dim
         self.best_split_val = best_split_val
-        self.best_score = best_score
+        self.best_split_score = best_split_score
 
         self.left_node = TreeNode(left_df, self.target_col, self.dimensions)
         self.right_node = TreeNode(right_df, self.target_col, self.dimensions)
@@ -83,7 +83,7 @@ class TreeNode:
 
         print(
             f"[{self.best_split_dim} == {self.best_split_val}] | "
-            f"score={self.best_score:.2%} | "
+            f"best_split_score={self.best_split_score:.2%} | "
             f"total={self.df[self.target_col].sum():.2%}"
         )
         print(
@@ -117,7 +117,6 @@ class Tree:
             if max_depth is not None
             else len(dimensions)
         )
-        self.learned_outcomes = []  # To track learned outcomes and prevent duplicates
 
     def _learn_recursive(self, node: TreeNode, depth: int):
         if self.verbose:
@@ -128,30 +127,67 @@ class Tree:
             return
 
         node.learn(verbose=self.verbose)
-        self.learned_outcomes.append(
-            {
-                "best_split_dim": node.best_split_dim,
-                "best_split_val": node.best_split_val,
-                "score": node.best_score,
-                "coverage": node.df[node.target_col].sum() / self.target_col_sum,
-            }
-        )
 
         # stop if 1) this node could not split or 2) reached max depth - 1 (to ensure leaf nodes) or 3) coverage is too small
         if (
             node.left_node is None
             or node.right_node is None
             or depth == self.max_depth - 1
-            or node.df[node.target_col].sum() / self.target_col_sum < self.max_coverage
+            or node.left_node.target_col_sum / self.target_col_sum < self.max_coverage
         ):
             return
 
         self._learn_recursive(node.left_node, depth + 1)
         # self._learn_recursive(node.right_node, depth + 1)
 
-    def learn(self, verbose=True):
+    def learn(self, verbose=False):
         self.verbose = verbose
         self._learn_recursive(self.root, depth=0)
+
+        self._collect_learned_outcomes(self.root)
+        self._format_learned_outcomes()
+
+    def _collect_learned_outcomes(self, node: TreeNode) -> list[dict]:
+        """Collect the learned outcomes from the tree in a list of dicts.
+        In this tree, left = best_split match, so leftmost path = most dominant segment chain
+        """
+        node = self.root
+        path = []
+        while node:
+            path.append(
+                {
+                    "best_split_dim": node.best_split_dim,
+                    "best_split_val": node.best_split_val,
+                    "score": node.target_col_sum,
+                    "coverage": node.target_col_sum / self.target_col_sum,
+                }
+            )
+            if node.left_node is None:
+                break
+            node = node.left_node
+
+        self._learned_outcomes = path
+
+    def _format_learned_outcomes(self):
+        assert hasattr(
+            self, "_learned_outcomes"
+        ), "Learned outcomes not collected yet. Call learn() first."
+        order_map = {dim: i for i, dim in enumerate(DIMENSION_COLS)}
+        sorted_outcomes = sorted(
+            self._learned_outcomes,
+            key=lambda o: order_map.get(o["best_split_dim"], float("inf")),
+        )
+        print("sorted outcomes: ", sorted_outcomes)
+        key_segment = "|".join(
+            f"{o['best_split_dim']} = {o['best_split_val']}"
+            for o in sorted_outcomes
+            if o["best_split_dim"]
+        )
+        self.key_segment = {
+            "driver": key_segment,
+            "best_score": self._learned_outcomes[-1]["score"],
+            "coverage": self._learned_outcomes[-1]["coverage"],
+        }
 
     def print_tree(self):
         self._print_tree(self.root, prefix="", side="Root", is_last=True)
@@ -166,17 +202,17 @@ class Tree:
         if node.best_split_dim is None:
             print(
                 f"{prefix}{connector}{side}: Leaf | "
-                f"parent={node.df[node.target_col].sum():.2%} | "
-                f"coverage={node.df[node.target_col].sum() / self.target_col_sum :.2%}"
+                f"score={node.target_col_sum:.2%} | "
+                f"coverage={node.target_col_sum / self.target_col_sum :.2%}"
             )
             return
 
         print(
             f"{prefix}{connector}{side}: "
-            f"[{node.best_split_dim} == {node.best_split_val}] | "
-            f"score={node.best_score:.2%} | "
-            f"parent={node.df[node.target_col].sum():.2%} | "
-            f"coverage={node.df[node.target_col].sum() / self.target_col_sum :.2%}"
+            # f"score={node.best_score:.2%} | "
+            f"score={node.target_col_sum:.2%} | "
+            f"coverage={node.target_col_sum / self.target_col_sum :.2%} | "
+            f"[{node.best_split_dim} == {node.best_split_val}]"
         )
 
         child_prefix = prefix + ("    " if is_last else "│   ")
@@ -193,16 +229,15 @@ if __name__ == "__main__":
     print(f"Data shape: {df_combined.shape}")
     print(f"Sample data:\n{df_combined.head()}")
 
+    ######## Test TreeNode ########
     # node = TreeNode(df_combined, target_col, DIMENSION_COLS)
     # node.learn()
     # node.print_node()
 
+    ######## Test Tree ########
     tree = Tree(df_combined, target_col, DIMENSION_COLS, max_coverage=0.25, max_depth=4)
     tree.learn(verbose=True)
     print("\n\nLearned tree structure:\n")
     tree.print_tree()
-    print("\n\nLearned outcomes (to check for duplicates):")
-    res = []
-    for outcome in tree.learned_outcomes:
-        res.append(f"{outcome['best_split_dim']} = {outcome['best_split_val']}")
-    print("|".join(res))
+    print("\nLearned outcomes: ")
+    print(tree.key_segment)

@@ -6,7 +6,13 @@ START_DATE_LY = "2019-01-01"
 END_DATE_TY = "2020-05-31"
 END_DATE_LY = "2019-05-31"
 
-DIMENSION_COLS = ["generation", "state", "market", "gender", "category"]
+DIMENSION_COLS = [
+    "generation",
+    "gender",
+    "category",
+    "state",
+    "market",
+]  # Please put the desired dimension order here, as it will be used in the final learned outcomes formatting
 
 RANDOM_SEED = 177
 
