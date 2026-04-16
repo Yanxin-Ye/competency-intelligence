@@ -117,15 +117,25 @@ class Tree:
             if max_depth is not None
             else len(dimensions)
         )
+        self.learned_outcomes = []  # To track learned outcomes and prevent duplicates
 
     def _learn_recursive(self, node: TreeNode, depth: int):
-        print(
-            f"Current depth: {depth}, target sum at node: {node.df[node.target_col].sum():.2%}, rows: {len(node.df)}"
-        )
+        if self.verbose:
+            print(
+                f"Current depth: {depth}, target sum at node: {node.df[node.target_col].sum():.2%}, rows: {len(node.df)}"
+            )
         if node is None or depth >= self.max_depth:
             return
 
-        node.learn()
+        node.learn(verbose=self.verbose)
+        self.learned_outcomes.append(
+            {
+                "best_split_dim": node.best_split_dim,
+                "best_split_val": node.best_split_val,
+                "score": node.best_score,
+                "coverage": node.df[node.target_col].sum() / self.target_col_sum,
+            }
+        )
 
         # stop if 1) this node could not split or 2) reached max depth - 1 (to ensure leaf nodes) or 3) coverage is too small
         if (
@@ -137,9 +147,10 @@ class Tree:
             return
 
         self._learn_recursive(node.left_node, depth + 1)
-        self._learn_recursive(node.right_node, depth + 1)
+        # self._learn_recursive(node.right_node, depth + 1)
 
-    def learn(self):
+    def learn(self, verbose=True):
+        self.verbose = verbose
         self._learn_recursive(self.root, depth=0)
 
     def print_tree(self):
@@ -186,7 +197,12 @@ if __name__ == "__main__":
     # node.learn()
     # node.print_node()
 
-    tree = Tree(df_combined, target_col, DIMENSION_COLS, max_coverage=0.25, max_depth=2)
-    tree.learn()
+    tree = Tree(df_combined, target_col, DIMENSION_COLS, max_coverage=0.25, max_depth=4)
+    tree.learn(verbose=True)
     print("\n\nLearned tree structure:\n")
     tree.print_tree()
+    print("\n\nLearned outcomes (to check for duplicates):")
+    res = []
+    for outcome in tree.learned_outcomes:
+        res.append(f"{outcome['best_split_dim']} = {outcome['best_split_val']}")
+    print("|".join(res))
