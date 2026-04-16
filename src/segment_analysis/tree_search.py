@@ -6,7 +6,16 @@ from helper import grpby_dim_val
 
 class TreeNode:
     def __init__(self, df: pd.DataFrame, target_col: str, dimensions: list[str]):
+        """A node in the decision tree.
+        Args:
+            df[pd.DataFrame]: DataFrame for this node
+            target_col[str]: The target column to search for
+            dimensions[list[str]]: List of dimensions to consider for splitting
+        """
         self.df = df.copy()
+        assert (
+            target_col in df.columns
+        ), f"Target column '{target_col}' not found in DataFrame"
         self.target_col = target_col
 
         missing = [d for d in dimensions if d not in df.columns]
@@ -22,9 +31,6 @@ class TreeNode:
         self.best_split_dim = None
         self.best_split_val = None
         self.best_score = None
-
-    def set_left(self, node):
-        self.left_node = node
 
     def learn(self, verbose=True):
         df = self.df
@@ -93,10 +99,24 @@ class TreeNode:
 
 
 class Tree:
-    def __init__(self, df, target_col, dimensions, max_depth=6):
+    def __init__(self, df, target_col, dimensions, max_coverage=0.2, max_depth=None):
+        """A decision tree
+        Args:
+            df[pd.DataFrame]: DataFrame for the root node
+            target_col[str]: The target column for the root node
+            dimensions[list[str]]: List of dimensions to consider for splitting, also for the root node
+            max_coverage[float]: Minimum coverage of the target column sum for a node to be split further, default to 0.2 (20%)
+            max_depth[int]: Maximum depth of the tree
+
+        """
         self.root = TreeNode(df, target_col, dimensions)
         self.target_col_sum = self.root.target_col_sum
-        self.max_depth = min(max_depth, len(dimensions))
+        self.max_coverage = max_coverage
+        self.max_depth = (
+            min(max_depth, len(dimensions))
+            if max_depth is not None
+            else len(dimensions)
+        )
 
     def _learn_recursive(self, node: TreeNode, depth: int):
         print(
@@ -107,8 +127,13 @@ class Tree:
 
         node.learn()
 
-        # stop if this node could not split
-        if node.left_node is None or node.right_node is None:
+        # stop if 1) this node could not split or 2) reached max depth - 1 (to ensure leaf nodes) or 3) coverage is too small
+        if (
+            node.left_node is None
+            or node.right_node is None
+            or depth == self.max_depth - 1
+            or node.df[node.target_col].sum() / self.target_col_sum < self.max_coverage
+        ):
             return
 
         self._learn_recursive(node.left_node, depth + 1)
@@ -130,8 +155,8 @@ class Tree:
         if node.best_split_dim is None:
             print(
                 f"{prefix}{connector}{side}: Leaf | "
-                f"total={node.df[node.target_col].sum():.2%} | "
-                f"{len(node.df)} rows"
+                f"parent={node.df[node.target_col].sum():.2%} | "
+                f"coverage={node.df[node.target_col].sum() / self.target_col_sum :.2%}"
             )
             return
 
@@ -139,8 +164,8 @@ class Tree:
             f"{prefix}{connector}{side}: "
             f"[{node.best_split_dim} == {node.best_split_val}] | "
             f"score={node.best_score:.2%} | "
-            f"total={node.df[node.target_col].sum():.2%} | "
-            f"{len(node.df)} rows"
+            f"parent={node.df[node.target_col].sum():.2%} | "
+            f"coverage={node.df[node.target_col].sum() / self.target_col_sum :.2%}"
         )
 
         child_prefix = prefix + ("    " if is_last else "│   ")
@@ -161,7 +186,7 @@ if __name__ == "__main__":
     # node.learn()
     # node.print_node()
 
-    tree = Tree(df_combined, target_col, DIMENSION_COLS, max_depth=4)
+    tree = Tree(df_combined, target_col, DIMENSION_COLS, max_coverage=0.25, max_depth=2)
     tree.learn()
     print("\n\nLearned tree structure:\n")
     tree.print_tree()
