@@ -220,6 +220,27 @@ class Tree:
         self._print_tree(node.right_node, child_prefix, "R", is_last=True)
 
 
+class TreeForest:
+    def __init__(
+        self, df, target_col, dimensions, n_trees=3, max_coverage=0.2, max_depth=None
+    ):
+        self.trees = []
+        self.df = df
+        self.target_col = target_col
+        self.dimensions = dimensions
+        self.n_trees = n_trees
+        self.max_coverage = max_coverage
+        self.max_depth = max_depth
+
+    def construct_forest(self):
+        # First Tree
+        tree = Tree(
+            self.df, self.target_col, self.dimensions, self.max_coverage, self.max_depth
+        )
+        tree.learn(verbose=False)
+        self.trees.append(tree)
+
+
 if __name__ == "__main__":
     TARGET_MERCHANTS = "fraud_Kilback LLC"
     target_col = "amt_growth_ctc_diff"
