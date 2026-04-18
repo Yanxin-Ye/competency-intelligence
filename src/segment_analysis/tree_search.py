@@ -31,6 +31,7 @@ class TreeNode:
         self.best_split_dim = None
         self.best_split_val = None
         self.best_split_score = None
+        self.info = None
 
     def learn(self, verbose=True):
         df = self.df
@@ -73,6 +74,13 @@ class TreeNode:
 
         self.left_node = TreeNode(left_df, self.target_col, self.dimensions)
         self.right_node = TreeNode(right_df, self.target_col, self.dimensions)
+
+        self.info = {
+            "best_split_dim": self.best_split_dim,
+            "best_split_val": self.best_split_val,
+            "score": self.target_col_sum,
+            "coverage": self.target_col_sum / self.target_col_sum,
+        }
 
     def print_node(self):
         if self.best_split_dim is None:
@@ -118,6 +126,10 @@ class Tree:
             else len(dimensions)
         )
 
+        self._leftmost_node_path = []
+        # self.left_most_node = None
+        # self.key_driver = None
+
     def _learn_recursive(self, node: TreeNode, depth: int):
         if self.verbose:
             print(
@@ -127,6 +139,7 @@ class Tree:
             return
 
         node.learn(verbose=self.verbose)
+        node.info.update({"coverage": node.target_col_sum / self.target_col_sum})
 
         # stop if 1) this node could not split or 2) reached max depth - 1 (to ensure leaf nodes) or 3) coverage is too small
         if (
@@ -152,41 +165,32 @@ class Tree:
         In this tree, left = best_split match, so leftmost path = most dominant segment chain
         """
         node = self.root
-        path = []
         while node:
-            path.append(
-                {
-                    "best_split_dim": node.best_split_dim,
-                    "best_split_val": node.best_split_val,
-                    "score": node.target_col_sum,
-                    "coverage": node.target_col_sum / self.target_col_sum,
-                }
-            )
             if node.left_node is None:
                 break
+            self._leftmost_node_path.append(node)
             node = node.left_node
 
-        self._learned_outcomes = path
-
     def _format_learned_outcomes(self):
-        assert hasattr(
-            self, "_learned_outcomes"
+        assert len(
+            self._leftmost_node_path
         ), "Learned outcomes not collected yet. Call learn() first."
         order_map = {dim: i for i, dim in enumerate(DIMENSION_COLS)}
         sorted_outcomes = sorted(
-            self._learned_outcomes,
+            [node.info for node in self._leftmost_node_path],
             key=lambda o: order_map.get(o["best_split_dim"], float("inf")),
         )
         print("sorted outcomes: ", sorted_outcomes)
-        key_segment = "|".join(
+        key_driver = "|".join(
             f"{o['best_split_dim']} = {o['best_split_val']}"
             for o in sorted_outcomes
             if o["best_split_dim"]
         )
-        self.key_segment = {
-            "driver": key_segment,
-            "best_score": self._learned_outcomes[-1]["score"],
-            "coverage": self._learned_outcomes[-1]["coverage"],
+        self.left_most_node = self._leftmost_node_path[-1]
+        self.key_driver = {
+            "driver": key_driver,
+            "score": self.left_most_node.info["score"],
+            "coverage": self.left_most_node.info["coverage"],
         }
 
     def print_tree(self):
@@ -231,14 +235,20 @@ class TreeForest:
         self.n_trees = n_trees
         self.max_coverage = max_coverage
         self.max_depth = max_depth
+        self.target_col_sum = df[target_col].sum()
 
     def construct_forest(self):
-        # First Tree
-        tree = Tree(
-            self.df, self.target_col, self.dimensions, self.max_coverage, self.max_depth
-        )
-        tree.learn(verbose=False)
-        self.trees.append(tree)
+        trees = []
+        df = self.df
+
+        while len(trees) < self.n_trees:
+            tree = Tree(
+                df, self.target_col, self.dimensions, self.max_coverage, self.max_depth
+            )
+            tree.learn(verbose=False)
+            trees.append(tree)
+            df = df.drop(tree.left_most_node.df.index)
+        return trees
 
 
 if __name__ == "__main__":
@@ -250,15 +260,36 @@ if __name__ == "__main__":
     print(f"Data shape: {df_combined.shape}")
     print(f"Sample data:\n{df_combined.head()}")
 
+    ######## Test Forest ########
+    forest = TreeForest(
+        df_combined,
+        target_col,
+        DIMENSION_COLS,
+        n_trees=3,
+        max_coverage=0.2,
+        max_depth=4,
+    )
+    a = forest.construct_forest()
+
+    print("\nLearned key drivers from the forest:")
+    for i, tree in enumerate(a, 1):
+        print(
+            f"{i}. Driver: {tree.key_driver['driver']}, "
+            f"Score: {tree.key_driver['score']:.2%}, "
+            f"Coverage: {tree.key_driver['score']/forest.target_col_sum:.2%}"
+        )
     ######## Test TreeNode ########
     # node = TreeNode(df_combined, target_col, DIMENSION_COLS)
     # node.learn()
     # node.print_node()
 
-    ######## Test Tree ########
-    tree = Tree(df_combined, target_col, DIMENSION_COLS, max_coverage=0.25, max_depth=4)
-    tree.learn(verbose=True)
-    print("\n\nLearned tree structure:\n")
-    tree.print_tree()
-    print("\nLearned outcomes: ")
-    print(tree.key_segment)
+    # ######## Test Tree ########
+    # tree = Tree(df_combined, target_col, DIMENSION_COLS, max_coverage=0.25, max_depth=4)
+    # tree.learn(verbose=True)
+    # print("\n\nLearned tree structure:\n")
+    # tree.print_tree()
+    # print("\nMost dominant segment chain (leftmost path):")
+    # for i, node in enumerate(tree._leftmost_node_path, 1):
+    #     print(f"{i}. {node.info}")
+    # print("\nLearned outcomes: ")
+    # print(tree.key_driver)
