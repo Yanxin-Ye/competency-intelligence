@@ -60,7 +60,7 @@ def plot_waterfall(dim, val, title="Waterfall Chart"):
     CONNECTOR_COLOR = "#D3D3D3"
     BG_COLOR = "#F7F7F7"
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(10, 5))
     fig.patch.set_facecolor(BG_COLOR)
     ax.set_facecolor(BG_COLOR)
 
