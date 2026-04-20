@@ -1,7 +1,7 @@
 import pandas as pd
 from config import DIMENSION_COLS
 import etl
-from helper import grpby_dim_val
+from helper import grpby_dim_val, plot_waterfall
 
 
 class TreeNode:
@@ -180,7 +180,6 @@ class Tree:
             [node.info for node in self._leftmost_node_path],
             key=lambda o: order_map.get(o["best_split_dim"], float("inf")),
         )
-        print("sorted outcomes: ", sorted_outcomes)
         key_driver = "|".join(
             f"{o['best_split_dim']} = {o['best_split_val']}"
             for o in sorted_outcomes
@@ -226,7 +225,14 @@ class Tree:
 
 class TreeForest:
     def __init__(
-        self, df, target_col, dimensions, n_trees=3, max_coverage=0.2, max_depth=None
+        self,
+        df,
+        target_col,
+        dimensions,
+        n_trees=3,
+        max_coverage=0.2,
+        max_depth=None,
+        verbose=False,
     ):
         self.trees = []
         self.df = df
@@ -236,19 +242,41 @@ class TreeForest:
         self.max_coverage = max_coverage
         self.max_depth = max_depth
         self.target_col_sum = df[target_col].sum()
+        self.verbose = verbose
 
     def construct_forest(self):
-        trees = []
         df = self.df
 
-        while len(trees) < self.n_trees:
+        while len(self.trees) < self.n_trees:
             tree = Tree(
                 df, self.target_col, self.dimensions, self.max_coverage, self.max_depth
             )
-            tree.learn(verbose=False)
-            trees.append(tree)
+            tree.learn(verbose=self.verbose)
+            self.trees.append(tree)
             df = df.drop(tree.left_most_node.df.index)
-        return trees
+            if self.verbose:
+                print(
+                    f"Constructed tree {len(self.trees)} with key driver: {tree.key_driver['driver']} and score: {tree.key_driver['score']:.2%}"
+                )
+                tree.print_tree()
+        return
+
+    def collect_key_drivers(self) -> tuple[list[str], list[float]]:
+        assert self.trees, "No trees in the forest. Call construct_forest() first."
+        dim = []
+        val = []
+        for tree in self.trees:
+            dim.append(tree.key_driver["driver"])
+            val.append(tree.key_driver["score"])
+        # Add Other bar
+        dim.append("Other")
+        val.append(self.target_col_sum - sum(val))
+        return dim, val
+
+    def plot_key_drivers(self, title="Please add title"):
+        assert self.trees, "No trees in the forest. Call construct_forest() first."
+        dim, val = self.collect_key_drivers(self.trees)
+        plot_waterfall(dim, val, title=title)
 
 
 if __name__ == "__main__":
@@ -268,16 +296,23 @@ if __name__ == "__main__":
         n_trees=3,
         max_coverage=0.2,
         max_depth=4,
+        verbose=True,
     )
-    a = forest.construct_forest()
+    forest.construct_forest()
 
     print("\nLearned key drivers from the forest:")
-    for i, tree in enumerate(a, 1):
-        print(
-            f"{i}. Driver: {tree.key_driver['driver']}, "
-            f"Score: {tree.key_driver['score']:.2%}, "
-            f"Coverage: {tree.key_driver['score']/forest.target_col_sum:.2%}"
-        )
+    dim, val = forest.collect_key_drivers()
+    peer_score = df_combined["amt_growth_ctc_peer"].sum()
+    target_score = df_combined["amt_growth_ctc"].sum()
+    print(f"Peer growth contribution: {peer_score:.2%}")
+    print(f"Target growth contribution: {target_score:.2%}")
+    dim = ["Peer Benchmark"] + dim + [f"Target ({TARGET_MERCHANTS})"]
+    val = [peer_score] + val + [target_score]
+    print("\nKey drivers and their contributions:")
+    for d, v in zip(dim, val):
+        print(f"{d:<30} | {v:>8.2%} | contribution: {v/target_score:>6.2%}")
+    plot_waterfall(dim, val, title=f"Segment Analysis for {TARGET_MERCHANTS}")
+
     ######## Test TreeNode ########
     # node = TreeNode(df_combined, target_col, DIMENSION_COLS)
     # node.learn()
