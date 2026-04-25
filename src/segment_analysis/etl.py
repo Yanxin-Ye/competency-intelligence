@@ -200,11 +200,21 @@ def load_rca_data(target_merchants: str):
 
 if __name__ == "__main__":
 
-    TARGET_MERCHANTS = "fraud_Kilback LLC"
+    TARGET_MERCHANTS = (
+        "fraud_Kilback LLC"  # A merchant with good growth that beat peers.
+    )
+    TARGET_MERCHANTS = "fraud_Champlin, Rolfson and Connelly"  # A merchant with negative growth that underperforms peers.
 
     df_comparison = load_trans_data()
     print(f"Data loaded with shape: {df_comparison.shape}")
     print(f"Sample data:\n{df_comparison.head()}")
+
+    # print(f"Sort merchants by total amount in TY:")
+    # df_comparison["amt_diff"] = df_comparison["amt_ty"] - df_comparison["amt_ly"]
+    # merchant_ty_totals = (
+    #     df_comparison.groupby("merchant")["amt_diff"].sum().sort_values(ascending=True)
+    # )
+    # print(merchant_ty_totals.head(10))
 
     df_combined = preprocess(df_comparison, TARGET_MERCHANTS)
     print(f"Cleaned data saved with shape: {df_combined.shape}")
