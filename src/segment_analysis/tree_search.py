@@ -280,14 +280,16 @@ class TreeForest:
 
 
 if __name__ == "__main__":
-    TARGET_MERCHANTS = "fraud_Kilback LLC"
-    target_col = "amt_growth_ctc_diff"
+    # TARGET_MERCHANTS = "fraud_Kilback LLC" # A randomly selected merchant
+    # TARGET_MERCHANTS = "fraud_Wolf Inc"  # A merchant with good growth that beat peers.
+    TARGET_MERCHANTS = "fraud_Champlin, Rolfson and Connelly"  # A merchant with negative growth that underperforms peers.
 
     df_combined = etl.load_rca_data(TARGET_MERCHANTS)
     print("Data loaded successfully.")
     print(f"Data shape: {df_combined.shape}")
     print(f"Sample data:\n{df_combined.head()}")
 
+    target_col = "amt_growth_ctc_diff"
     ######## Test Forest ########
     forest = TreeForest(
         df_combined,
