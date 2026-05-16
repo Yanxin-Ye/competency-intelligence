@@ -145,7 +145,7 @@ def preprocess(df_comparison, target_merchants, save_data=True):
     )
     if save_data:
         # Save the combined data to a CSV file
-        save_file(df_combined, f"etl/rca_{target_merchants}.csv")
+        save_file(df_combined, f"etl_data/rca_{target_merchants}.csv")
 
     return df_combined
 
@@ -187,7 +187,7 @@ def save_file(df, filename):
 
 def load_rca_data(target_merchants: str):
     BASE_DIR = Path(__file__).resolve().parent
-    file_path = BASE_DIR / "etl" / f"rca_{target_merchants}.csv"
+    file_path = BASE_DIR / "etl_data" / f"rca_{target_merchants}.csv"
     if file_path.exists():
         print(f"File exists, loading data from {file_path}...")
         df_combined = pd.read_csv(file_path)

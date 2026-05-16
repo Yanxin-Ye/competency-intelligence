@@ -1,5 +1,4 @@
 /bin/
 /lib/
-src/segment_analysis/etl/*.csv
-
+/src/segment_analysis/etl_data/*
 *test.ipynb

@@ -1,9 +1,9 @@
 """Check all combinations of dimensions to find top drivers of growth difference"""
 
-import etl
+import segment_analysis.etl as etl
 from itertools import combinations
-from config import DIMENSION_COLS
-from helper import grpby_dim_val
+from segment_analysis.config import DIMENSION_COLS
+from segment_analysis.helper import grpby_dim_val
 
 
 def exhaustive_eval(df_combined, target_col, dim_cols=DIMENSION_COLS):

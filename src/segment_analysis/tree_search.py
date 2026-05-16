@@ -1,6 +1,6 @@
 import pandas as pd
 from config import DIMENSION_COLS
-import etl
+import etl as etl
 from helper import grpby_dim_val, plot_waterfall
 
 
