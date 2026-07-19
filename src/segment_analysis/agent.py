@@ -56,8 +56,8 @@ llm = ChatGroq(
 
 if __name__ == "__main__":
     # TARGET_MERCHANTS = "fraud_Kilback LLC" # A randomly selected merchant
-    # TARGET_MERCHANTS = "fraud_Wolf Inc"  # A merchant with good growth that beat peers.
-    TARGET_MERCHANTS = "fraud_Champlin, Rolfson and Connelly"  # A merchant with negative growth that underperforms peers.
+    TARGET_MERCHANTS = "fraud_Wolf Inc"  # A merchant with good growth that beat peers.
+    # TARGET_MERCHANTS = "fraud_Champlin, Rolfson and Connelly"  # A merchant with negative growth that underperforms peers.
     target_col = "amt_growth_ctc_diff"
     dim_cols = [
         "generation",
@@ -74,7 +74,18 @@ if __name__ == "__main__":
     response = llm.invoke(
         [
             SystemMessage(
-                content=f"You are a senior analyst trying to analyze what drives the gap between peer and target performance.\n You run a tree search algorithm, and find the key drivers as:\n {kda_insights}\n Now, summarize the results in a clear and concise way."
+                content=f"""You are a senior analyst trying to analyze what drives the gap between peer and target performance. \n
+                You run a tree search algorithm, and find the key drivers as:\n {kda_insights}\n
+                You will get a peer benchmark info in the first row, a target info in the last row. You don't need to talk about their contributions.
+                The key drivers lay in the middle rows, the contribution of all the key drivers add up to 100%, and the score of each all the key drivers add up to the gap between peer and target performance. \n
+
+                Now, summarize the results in a clear and concise way:
+                1. Talk about the overall performance gap between peer and target, and whether the target is outperforming or underperforming their peers.
+                2. You can discuss the contribution of each key driver, but no need to talk about the contribution of peer and target.
+                3. You can also provide some actionable recommendations on what the target can do to improve based on the key drivers.
+
+                Note: Do not make up any information that is not in the key driver analysis results. Only analyze based on the key drivers and their contributions. Do not bring in any external information or assumptions.
+                """
             )
         ]
     )
